@@ -186,7 +186,8 @@ struct Node{
 	struct Node* leftNode;
 	struct Node* rightNode;
 	double threshold;
-	int CVVFeatureIndes;
+	int CVVFeatureIndex;
+	bool decisionValue;
 
 	vector<bool> *decisionVector;
 	vector<vector<double>> *CVV;
@@ -200,10 +201,11 @@ struct Node* createNewNode(bool isDiscrete, vector<bool> *decisionVector, vector
 	returnNode->leftNode = NULL;
 	returnNode->rightNode = NULL;
 	returnNode->threshold = 0;
-	returnNode->CVVFeatureIndes = 0;
+	returnNode->CVVFeatureIndex = 0;
 	returnNode->decisionVector = decisionVector;
 	returnNode->DVV = DVV;
 	returnNode->CVV = CVV;
+	returnNode->decisionValue = false;
 
 	return returnNode;
 }
@@ -242,6 +244,7 @@ void createMapNode(vector<bool> decisionVector, vector<vector<double>> CVV, vect
 	}
 	
 	headNode->discreteChildren = mapToNode;
+	headNode->isDiscrete = true;
 }
 
 // TODO: change to template T,Z
@@ -300,7 +303,7 @@ struct Node* headNode){
 
 	headNode->isDiscrete = false;
 	headNode->threshold = CVVCut;
-	headNode->CVVFeatureIndes = CVVMaxGainIndex;
+	headNode->CVVFeatureIndex = CVVMaxGainIndex;
 	headNode->leftNode = leftNode;
 	headNode->rightNode = rightNode;
 
@@ -311,7 +314,53 @@ struct Node* headNode){
 }
 
 void PrintDecisionTree(struct Node* head){
+	queue<struct Node*> q;
+	q.push(head);
 
+	string prefixString = "node_";
+	int nodeIndex = 0;
+
+	string outputGraphviz = "digraph G {\n";
+
+	while(q.empty() == false){
+		struct Node* front = q.front();
+		q.pop();
+		int headNodeIndex = nodeIndex;
+		nodeIndex++;
+
+		if(front->isDiscrete){
+			outputGraphviz += "\t " + prefixString + std::to_string(nodeIndex) + " [label=\"Discrete\"];\n";
+
+			// for each key in the map
+			map<string, struct Node*>::iterator mapIt = front->discreteChildren->begin();
+
+			while(mapIt != front->discreteChildren->end()){
+				int childNodeIndex = nodeIndex + q.size();
+
+				// add in the queue and print information
+				q.push(mapIt->second);
+				outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeIndex) + " [label=\""+ mapIt->first +"\"];\n";
+				mapIt++;
+			}
+		}else{
+			outputGraphviz += "\t " + prefixString + std::to_string(headNodeIndex) + " [label=\"Continuous\\n" + to_string(front->threshold) + "\"];\n";
+
+			// print left and right
+			int childNodeLeft = nodeIndex + q.size();
+			int childNodeRight = nodeIndex+ q.size() + 1;
+
+			if(front->leftNode != NULL){
+				q.push(front->leftNode);
+			}
+			if(front->rightNode != NULL){
+				q.push(front->rightNode);
+			}
+			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeLeft) + " [label=\"<\"];\n";
+			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeRight) + " [label=\">=\"];\n";
+		}
+	}
+	// Finalize the string
+	outputGraphviz += "}\n";
 }
 
 int main(){
@@ -536,6 +585,7 @@ int main(){
 	}
 
 	// print decision tree in graph form
+	PrintDecisionTree(head);
 
 	return 0;
 }
