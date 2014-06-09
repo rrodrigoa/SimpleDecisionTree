@@ -39,7 +39,7 @@ bool biggerThanConditionalFunction(T expectedValue, T featureValue){
 
 // Calculate the entropy of the response vector
 template<typename T>
-double simpleEntropy(vector<T> responseVector, bool (*conditionFunction)(T,T), T inputCondition){
+double simpleEntropy(vector<T> responseVector, bool(*conditionFunction)(T, T), T inputCondition){
 	double numOfFalses = 0;
 	double numOfTrues = 0;
 	double totalNumberOfValues = responseVector.size();
@@ -146,9 +146,9 @@ double continuousGain(vector<T> featureVector, vector<bool> responseVector, T* s
 	bool(*conditionalFunction)(T, T) = &biggerThanConditionalFunction<T>;
 
 	// Verify all values finding a boundary in value
-	while (currentIndex < total-1){
+	while (currentIndex < total - 1){
 		// Change in value for the response vector, means possible cut value
-		if (orderedVector[currentIndex].second != orderedVector[currentIndex+1].second){
+		if (orderedVector[currentIndex].second != orderedVector[currentIndex + 1].second){
 			middleValue = (orderedVector[currentIndex].first + orderedVector[currentIndex + 1].first) / 2;
 			tempSetDivisionGain = simpleEntropy<T>(featureVector, conditionalFunction, middleValue);
 
@@ -241,8 +241,17 @@ void createMapNode(vector<bool> decisionVector, vector<vector<double>> CVV, vect
 			childNode = createNewNode();
 			mapToNode->insert(pair<string, struct Node*>(DVV[DVVIndex], childNode));
 		}
+
+		for (int CVVFeatureIndex = 0; CVVFeatureIndex < CVV.size(); CVVFeatureIndex++){
+			if (childNode->CVV->size() == CVVFeatureIndex){
+				childNode->CVV->push_back(vector<double>());
+			}
+			childNode->CVV->at(CVVFeatureIndex).push_back(CVV[CVVFeatureIndex][DVVIndex]);
+		}
+
+		childNode->decisionVector->push_back(decisionVector[DVVIndex]);
 	}
-	
+
 	headNode->discreteChildren = mapToNode;
 	headNode->isDiscrete = true;
 }
@@ -258,7 +267,7 @@ struct Node* headNode){
 
 	vector<string> *leftDVV = new vector<string>();
 	vector<string> *rightDVV = new vector<string>();
-	
+
 	// Cut Left and right
 	for (int featureIndex = 0; featureIndex < CVV.size(); featureIndex++){
 		if (featureIndex != CVVMaxGainIndex){
@@ -322,45 +331,50 @@ void PrintDecisionTree(struct Node* head){
 
 	string outputGraphviz = "digraph G {\n";
 
-	while(q.empty() == false){
+	while (q.empty() == false){
 		struct Node* front = q.front();
 		q.pop();
 		int headNodeIndex = nodeIndex;
 		nodeIndex++;
 
-		if(front->isDiscrete){
+		if (front->isDiscrete && front->decisionVector->size() != 1){
 			outputGraphviz += "\t " + prefixString + std::to_string(nodeIndex) + " [label=\"Discrete\"];\n";
 
 			// for each key in the map
 			map<string, struct Node*>::iterator mapIt = front->discreteChildren->begin();
 
-			while(mapIt != front->discreteChildren->end()){
+			while (mapIt != front->discreteChildren->end()){
 				int childNodeIndex = nodeIndex + q.size();
 
 				// add in the queue and print information
 				q.push(mapIt->second);
-				outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeIndex) + " [label=\""+ mapIt->first +"\"];\n";
+				outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeIndex) + " [label=\"" + mapIt->first + "\"];\n";
 				mapIt++;
 			}
-		}else{
+		}
+		else if(front->decisionVector->size() != 1){
 			outputGraphviz += "\t " + prefixString + std::to_string(headNodeIndex) + " [label=\"Continuous\\n" + to_string(front->threshold) + "\"];\n";
 
 			// print left and right
 			int childNodeLeft = nodeIndex + q.size();
-			int childNodeRight = nodeIndex+ q.size() + 1;
+			int childNodeRight = nodeIndex + q.size() + 1;
 
-			if(front->leftNode != NULL){
+			if (front->leftNode != NULL){
 				q.push(front->leftNode);
 			}
-			if(front->rightNode != NULL){
+			if (front->rightNode != NULL){
 				q.push(front->rightNode);
 			}
 			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeLeft) + " [label=\"<\"];\n";
 			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeRight) + " [label=\">=\"];\n";
 		}
+		else{
+			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " [label=\"Decision\\n" + (front->decisionVector->at(0) == false ? "false" : "true") + "\"];\n";
+		}
 	}
 	// Finalize the string
 	outputGraphviz += "}\n";
+	printf("%s\n", outputGraphviz.c_str());
 }
 
 int main(){
@@ -539,7 +553,7 @@ int main(){
 	while (q.empty() == false){
 		struct Node* front = (struct Node*)q.front();
 		q.pop();
-		
+
 		// calculate CVVMaxGain as being the biggest gain in CVV
 		double CVVGain = 0;
 		double CVVMaxGain = 0;
@@ -573,11 +587,11 @@ int main(){
 			q.push(front->leftNode);
 			q.push(front->rightNode);
 		}
-		else if(DVVGain != 0){
+		else if (DVVGain != 0){
 			createMapNode(*front->decisionVector, *front->CVV, *front->DVV, front);
 			map<string, struct Node*>::iterator it = front->discreteChildren->begin();
 
-			while(it != front->discreteChildren->end()){
+			while (it != front->discreteChildren->end()){
 				q.push(it->second);
 				it++;
 			}
