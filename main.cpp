@@ -13,317 +13,168 @@
 #include <set>
 using namespace std;
 
-// The equal conditional function for simpleEntropy
-template <typename T>
-bool equalConditionalFunction(T expectedValue, T featureValue){
-	if (expectedValue == featureValue)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+// Keyboard representation for calculating distance between keys
+typedef vector<vector<short>> MognoKeyboard;
+
+// Create a qwerty keyboard representation
+MognoKeyboard* QwertyKeyboard(){
+	MognoKeyboard* keyboard = new vector<vector<short>>();
+	keyboard->push_back(vector<short>());
+	keyboard->at(0).push_back('q');
+	keyboard->at(0).push_back('w');
+	keyboard->at(0).push_back('e');
+	keyboard->at(0).push_back('r');
+	keyboard->at(0).push_back('t');
+	keyboard->at(0).push_back('y');
+	keyboard->at(0).push_back('u');
+	keyboard->at(0).push_back('i');
+	keyboard->at(0).push_back('o');
+	keyboard->at(0).push_back('p');
+
+	keyboard->push_back(vector<short>());
+	keyboard->at(1).push_back('a');
+	keyboard->at(1).push_back('s');
+	keyboard->at(1).push_back('d');
+	keyboard->at(1).push_back('f');
+	keyboard->at(1).push_back('g');
+	keyboard->at(1).push_back('h');
+	keyboard->at(1).push_back('j');
+	keyboard->at(1).push_back('k');
+	keyboard->at(1).push_back('l');
+	
+	keyboard->push_back(vector<short>());
+	keyboard->at(2).push_back('z');
+	keyboard->at(2).push_back('x');
+	keyboard->at(2).push_back('c');
+	keyboard->at(2).push_back('v');
+	keyboard->at(2).push_back('b');
+	keyboard->at(2).push_back('n');
+	keyboard->at(2).push_back('m');
+
+	return keyboard;
 }
 
-// The bigger than conditional function for simpleEntropy
-template <typename T>
-bool biggerThanConditionalFunction(T expectedValue, T featureValue){
-	if (featureValue > expectedValue){
-		return true;
+// Return the distance of two chars based on a keyboard
+int CharDistance(short A, short B, MognoKeyboard keyboard){
+	vector<short>::iterator a_it = keyboard[0].begin();
+	vector<short>::iterator b_it = keyboard[0].begin();
+
+	int k = 0;
+	int aIndex = 0;
+	while (k != keyboard.size()){
+		if (aIndex == keyboard[k].size()){
+			aIndex = 0;
+			k++;
+		}
+		else if (keyboard[k][aIndex] == A){
+			break;
+		}
+		else{
+			aIndex++;
+		}
 	}
-	else{
-		return false;
+	int bIndex = 0;
+	k = 0;
+	while (k != keyboard.size()){
+		if (bIndex == keyboard[k].size()){
+			bIndex = 0;
+			k++;
+		}
+		else if (keyboard[k][bIndex] == B){
+			break;
+		}
+		else{
+			bIndex++;
+		}
 	}
+
+	int distance = aIndex - bIndex;
+	return (distance < 0 ? -distance : distance);
 }
 
-// Calculate the entropy of the response vector
-template<typename T>
-double simpleEntropy(vector<T> responseVector, bool(*conditionFunction)(T, T), T inputCondition){
-	double numOfFalses = 0;
-	double numOfTrues = 0;
-	double totalNumberOfValues = responseVector.size();
-	double entropy = 0;
+// Calculate the keyboard distance of to strings, giving a keyboard
+int KeyboardDistance(string a, string b, MognoKeyboard keyboard){
+	int m = a.size() + 1;
+	int n = b.size() + 1;
 
-	if (totalNumberOfValues != 0){
-		vector<T>::iterator it = responseVector.begin();
+	vector<vector<int>> matrix;
+	vector<int> colVector0;
+	int col = 0;
+	int line = 0;
+	for(col = 0; col < m; col++){
+		if(col < m){
+			colVector0.push_back(col);
+		}
+	}
+	matrix.push_back(colVector0);
+	for(line = 0; line < n-1; line++){
+		matrix.push_back(vector<int>(m));
+	}
 
-		while (it != responseVector.end()){
-			if (conditionFunction(inputCondition, *it)){
-				numOfTrues++;
+	for (int line = 1; line < n; line++){
+		for (int col = 1; col < m; col++){
+			if (b[line-1] == a[col-1]){
+				matrix[line][col] = matrix[line - 1][col - 1];
 			}
 			else{
-				numOfFalses++;
-			}
-			it++;
-		}
-
-		double falseRate = numOfFalses / totalNumberOfValues;
-		double trueRate = numOfTrues / totalNumberOfValues;
-
-		entropy = -falseRate*log(falseRate) / log(2) - trueRate*log(trueRate) / log(2);
-	}
-
-	return entropy;
-}
-
-// Calculate the entropy of the response vector based on a comparison method and a feature vector
-template<typename T>
-double conditionalEntropy(vector<bool> responseVector, vector<T> featureVector, T inputCondition, double* totalCount){
-	double numOfFalses = 0;
-	double numOfTrues = 0;
-	double totalNumberOfValues = 0;
-	double entropy = 0;
-
-	if (responseVector.size() == featureVector.size() && (responseVector.size() != 0) && (featureVector.size() != 0)){
-		vector<bool>::iterator it_response = responseVector.begin();
-		vector<T>::iterator it_feature = featureVector.begin();
-
-		while (it_feature != featureVector.end()){
-			// If this feature meet the condition function
-			if (inputCondition == *it_feature){
-				if (*it_response == true){
-					numOfTrues++;
-				}
-				else{
-					numOfFalses++;
-				}
-				totalNumberOfValues++;
-			}
-			it_response++;
-			it_feature++;
-		}
-
-		double falseRate = numOfFalses / totalNumberOfValues;
-		double trueRate = numOfTrues / totalNumberOfValues;
-
-		*totalCount = totalNumberOfValues;
-		entropy = falseRate != 0 ? -falseRate*log(falseRate) / log(2) : 0;
-		entropy += trueRate != 0 ? -trueRate*log(trueRate) / log(2) : 0;
-	}
-
-	return entropy;
-}
-
-// Calculate the Gain for a descrete feature set
-template<typename T>
-double discreteGrain(vector<T> differentDescreteValues, vector<T> featureVector, vector<bool> responseVector){
-	bool(*conditionalFunction)(bool, bool) = &equalConditionalFunction<bool>;
-	double entropy = simpleEntropy(responseVector, conditionalFunction, true);
-
-	// For each discrete value on feature
-	vector<T>::iterator it = differentDescreteValues.begin();
-	double total = featureVector.size();
-	while (it != differentDescreteValues.end()){
-		double totalCountForDiscreteValue = 0;
-		double condEntropy = conditionalEntropy<T>(responseVector, featureVector, *it, &totalCountForDiscreteValue);
-		entropy = entropy - (totalCountForDiscreteValue / total)*condEntropy;
-		it++;
-	}
-
-	return entropy;
-}
-
-// Calculate the gain for a continuous feature set
-template<typename T>
-double continuousGain(vector<T> featureVector, vector<bool> responseVector, T* setDivisionValue){
-	vector<pair<T, bool> > orderedVector;
-	for (int i = 0; i < featureVector.size(); i++){
-		orderedVector.push_back(pair<T, bool>(featureVector[i], responseVector[i]));
-	}
-	sort(orderedVector.begin(), orderedVector.end());
-
-	double total = featureVector.size();
-
-	int currentIndex = 0;
-
-	double tempSetDivisionGain = 0;
-	double totalCountForDescreteValue = 0;
-	double middleValue = 0;
-
-	double maxSetDivisionGain = 0;
-	double maxMiddleValue = 0;
-	bool(*conditionalFunction)(T, T) = &biggerThanConditionalFunction<T>;
-
-	// Verify all values finding a boundary in value
-	while (currentIndex < total - 1){
-		// Change in value for the response vector, means possible cut value
-		if (orderedVector[currentIndex].second != orderedVector[currentIndex + 1].second){
-			middleValue = (orderedVector[currentIndex].first + orderedVector[currentIndex + 1].first) / 2;
-			tempSetDivisionGain = simpleEntropy<T>(featureVector, conditionalFunction, middleValue);
-
-			// Found a bigger information gain boundary
-			if (tempSetDivisionGain > maxSetDivisionGain){
-				maxSetDivisionGain = tempSetDivisionGain;
-				maxMiddleValue = middleValue;
+				int minValue = min(matrix[line - 1][col], matrix[line][col - 1]);
+				minValue = min(minValue, matrix[line - 1][col - 1]);
+				int distanceValue = CharDistance(a[col-1], b[line-1], keyboard);
+				minValue += distanceValue;
+#ifdef DEBUG
+				printf("%d for %c, %c\n", distanceValue, a[col-1], b[line-1]);
+#endif
+				matrix[line][col] = minValue;
 			}
 		}
-		currentIndex++;
 	}
 
-	*setDivisionValue = maxMiddleValue;
-	return maxSetDivisionGain;
+	return matrix[n-1][m-1];
 }
 
-// Create a vector with the unique values of a feature vector
-template <typename T>
-vector<T>* uniqueVector(vector<T> featureVector){
-	vector<T>* uniqueVector = new vector<T>();
-
-	for (int index = 0; index < featureVector.size(); index++){
-		vector<T>::iterator it = lower_bound(uniqueVector->begin(), uniqueVector->end(), featureVector[index]);
-		if (it == uniqueVector->end() || *it != featureVector[index]){
-			uniqueVector->push_back(featureVector[index]);
-		}
-	}
-
-	return uniqueVector;
-}
-
-struct Node{
-	bool isDiscrete;
-	map<string, struct Node*> *discreteChildren;
-	struct Node* leftNode;
-	struct Node* rightNode;
-	double threshold;
-	int CVVFeatureIndex;
-	bool decisionValue;
-
-	vector<bool> *decisionVector;
-	vector<vector<double>> *CVV;
-	vector<string> *DVV;
+struct SuffixNode{
+	// Sulffix children
+	map<short, struct SuffixNode*> *children;
+	// Node rank
+	int rank;
 };
 
-struct Node* createNewNode(bool isDiscrete, vector<bool> *decisionVector, vector<vector<double>> *CVV, vector<string> *DVV){
-	struct Node* returnNode = (struct Node*)calloc(1, sizeof(struct Node));
-	returnNode->isDiscrete = isDiscrete;
-	returnNode->discreteChildren = new map<string, struct Node*>();
-	returnNode->leftNode = NULL;
-	returnNode->rightNode = NULL;
-	returnNode->threshold = 0;
-	returnNode->CVVFeatureIndex = 0;
-	returnNode->decisionVector = decisionVector;
-	returnNode->DVV = DVV;
-	returnNode->CVV = CVV;
-	returnNode->decisionValue = false;
+struct SuffixNode* CreateSuffixTree(vector<pair<int,string>> *words){
+	struct SuffixNode* head = (struct SuffixNode*)calloc(sizeof(struct SuffixNode),1);
+	head->children = new map<short, struct SuffixNode*>();
+	head->rank = 0;
 
-	return returnNode;
-}
+	// For each word to be processed
+	for(int wordIndex = 0; wordIndex < words->size(); wordIndex++){
+		struct SuffixNode* headTemp = head;
 
-struct Node* createNewNode(){
-	struct Node* returnNode = (struct Node*)calloc(1, sizeof(struct Node));
-	returnNode->isDiscrete = false;
-	returnNode->discreteChildren = new map<string, struct Node*>();
-	returnNode->leftNode = NULL;
-	returnNode->rightNode = NULL;
-	returnNode->threshold = 0;
-	returnNode->CVVFeatureIndex = 0;
-	returnNode->decisionVector = new vector<bool>();
-	returnNode->DVV = new vector<string>();
-	returnNode->CVV = new vector<vector<double>>();
+		// For each char in the word
+		for(int charIndex = 0; charIndex < words->at(wordIndex).second.size(); charIndex++){
+			// Try to find the char in the map
+			map<short,struct SuffixNode*>::iterator mapIt = headTemp->children->find((short)words->at(wordIndex).second[charIndex]);
 
-	return returnNode;
-}
+			// If char is not there
+			if(mapIt == headTemp->children->end()){
+				// Create a new SuffixNode and save at that key with the rank
+				struct SuffixNode* newNode = (struct SuffixNode*)calloc(sizeof(struct SuffixNode), 1);
+				newNode->children = new map<short, struct SuffixNode*>();
 
-// TODO: template
-void createMapNode(vector<bool> decisionVector, vector<vector<double>> CVV, vector<string> DVV, struct Node* headNode){
-	vector<string> *uniqueValues = uniqueVector<string>(DVV);
-
-	map<string, struct Node*> *mapToNode = new map<string, struct Node*>();
-	for (int DVVIndex = 0; DVVIndex < DVV.size(); DVVIndex++){
-		map<string, struct Node*>::iterator DVVit = mapToNode->find(DVV[DVVIndex]);
-		struct Node* childNode = NULL;
-
-		if (DVVit != mapToNode->end()){
-			childNode = DVVit->second;
-		}
-		else{
-			childNode = createNewNode();
-			mapToNode->insert(pair<string, struct Node*>(DVV[DVVIndex], childNode));
-		}
-
-		for (int CVVFeatureIndex = 0; CVVFeatureIndex < CVV.size(); CVVFeatureIndex++){
-			if (childNode->CVV->size() == CVVFeatureIndex){
-				childNode->CVV->push_back(vector<double>());
-			}
-			childNode->CVV->at(CVVFeatureIndex).push_back(CVV[CVVFeatureIndex][DVVIndex]);
-		}
-
-		childNode->decisionVector->push_back(decisionVector[DVVIndex]);
-	}
-
-	headNode->discreteChildren = mapToNode;
-	headNode->isDiscrete = true;
-}
-
-// TODO: change to template T,Z
-void createSmallerEqualAndBiggerNode(vector<bool> decisionVector, vector<vector<double>> CVV, vector<string> DVV, double CVVCut, int CVVMaxGainIndex,
-struct Node* headNode){
-	vector<vector<double>> *leftCVV = new vector<vector<double>>();
-	vector<vector<double>> *rightCVV = new vector<vector<double>>();
-
-	vector<bool> *leftDecisionVector = new vector<bool>();
-	vector<bool> *rightDecisionVector = new vector<bool>();
-
-	vector<string> *leftDVV = new vector<string>();
-	vector<string> *rightDVV = new vector<string>();
-
-	// Cut Left and right
-	for (int featureIndex = 0; featureIndex < CVV.size(); featureIndex++){
-		if (featureIndex != CVVMaxGainIndex){
-			int featureIndexMinusCount = featureIndex;
-			if (CVVMaxGainIndex < featureIndex){
-				featureIndexMinusCount--;
-			}
-			if (featureIndexMinusCount == leftCVV->size()){
-				leftCVV->push_back(vector<double>());
-				rightCVV->push_back(vector<double>());
-			}
-
-			for (int valueIndex = 0; valueIndex < CVV[CVVMaxGainIndex].size(); valueIndex++){
-				if (CVV[CVVMaxGainIndex][valueIndex] <= CVVCut){
-					leftCVV->at(featureIndexMinusCount).push_back(CVV[featureIndexMinusCount][valueIndex]);
-				}
-				else{
-					rightCVV->at(featureIndexMinusCount).push_back(CVV[featureIndexMinusCount][valueIndex]);
-				}
-			}
-		}
-		else{
-			for (int valueIndex = 0; valueIndex < CVV[CVVMaxGainIndex].size(); valueIndex++){
-				if (CVV[CVVMaxGainIndex][valueIndex] <= CVVCut){
-					if (DVV.size() != 0){
-						leftDVV->push_back(DVV[valueIndex]);
-					}
-					leftDecisionVector->push_back(decisionVector[valueIndex]);
-				}
-				else{
-					if (DVV.size() != 0){
-						rightDVV->push_back(DVV[valueIndex]);
-					}
-					rightDecisionVector->push_back(decisionVector[valueIndex]);
-				}
+				newNode->rank = words->at(wordIndex).first;
+				headTemp->children->insert(pair<short,struct SuffixNode*>((short)words->at(wordIndex).second[charIndex], newNode));
+				headTemp = newNode;
+			}else{
+				// Just sum the rank for final total
+				headTemp = mapIt->second;
+				headTemp->rank += words->at(wordIndex).first;
 			}
 		}
 	}
 
-	struct Node* leftNode = createNewNode(false, leftDecisionVector, leftCVV, leftDVV);
-	struct Node* rightNode = createNewNode(false, rightDecisionVector, rightCVV, rightDVV);
-
-	headNode->isDiscrete = false;
-	headNode->threshold = CVVCut;
-	headNode->CVVFeatureIndex = CVVMaxGainIndex;
-	headNode->leftNode = leftNode;
-	headNode->rightNode = rightNode;
-
-	// TODO: release memory of internal vectors
-	// Release CVV
-	// Release DVV
-	// Release decisionVector
+	return head;
 }
 
-void PrintDecisionTree(struct Node* head){
-	queue<struct Node*> q;
+void PrintSuffixTree(struct SuffixNode* head){
+	queue<struct SuffixNode*> q;
 	q.push(head);
 
 	string prefixString = "node_";
@@ -332,44 +183,20 @@ void PrintDecisionTree(struct Node* head){
 	string outputGraphviz = "digraph G {\n";
 
 	while (q.empty() == false){
-		struct Node* front = q.front();
+		struct SuffixNode* front = q.front();
 		q.pop();
 		int headNodeIndex = nodeIndex;
 		nodeIndex++;
 
-		if (front->isDiscrete && front->decisionVector->size() != 1){
-			outputGraphviz += "\t " + prefixString + std::to_string(nodeIndex) + " [label=\"Discrete\"];\n";
-
-			// for each key in the map
-			map<string, struct Node*>::iterator mapIt = front->discreteChildren->begin();
-
-			while (mapIt != front->discreteChildren->end()){
-				int childNodeIndex = nodeIndex + q.size();
-
-				// add in the queue and print information
-				q.push(mapIt->second);
-				outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeIndex) + " [label=\"" + mapIt->first + "\"];\n";
-				mapIt++;
+		if(front->children != NULL){
+			map<short, struct SuffixNode*>::iterator mapIt = front->children->begin();
+			while (mapIt != front->children->end()){
+					int childNodeIndex = nodeIndex + q.size();
+					// add in the queue and print information
+					q.push(mapIt->second);
+					outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeIndex) + " [label=\"rank=" + to_string(mapIt->second->rank) + " key=" + (char)mapIt->first + "\"];\n";
+					mapIt++;
 			}
-		}
-		else if(front->decisionVector->size() != 1){
-			outputGraphviz += "\t " + prefixString + std::to_string(headNodeIndex) + " [label=\"Continuous\\n" + to_string(front->threshold) + "\"];\n";
-
-			// print left and right
-			int childNodeLeft = nodeIndex + q.size();
-			int childNodeRight = nodeIndex + q.size() + 1;
-
-			if (front->leftNode != NULL){
-				q.push(front->leftNode);
-			}
-			if (front->rightNode != NULL){
-				q.push(front->rightNode);
-			}
-			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeLeft) + " [label=\"<\"];\n";
-			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " -> " + prefixString + to_string(childNodeRight) + " [label=\">=\"];\n";
-		}
-		else{
-			outputGraphviz += "\t " + prefixString + to_string(headNodeIndex) + " [label=\"Decision\\n" + (front->decisionVector->at(0) == false ? "false" : "true") + "\"];\n";
 		}
 	}
 	// Finalize the string
@@ -377,229 +204,26 @@ void PrintDecisionTree(struct Node* head){
 	printf("%s\n", outputGraphviz.c_str());
 }
 
+vector<pair<int,string>>* ReadFrequencyCIN(){
+	vector<pair<int,string>>* words = new vector<pair<int,string>>();
+
+	int freq = 0;
+	string word;
+	while(cin >> freq){
+		cin >> word;
+		words->push_back(pair<int,string>(freq, word));
+	}
+
+	return words;
+}
+
 int main(){
-	double error = 0.0001;
-
-
-	//--------------------------------------------------------------
-	vector<bool> responseVector;
-	responseVector.push_back(false);
-	responseVector.push_back(false);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(false);
-	responseVector.push_back(true);
-	responseVector.push_back(false);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(true);
-	responseVector.push_back(false);
-
-	bool(*conditionalFunction)(bool, bool) = &equalConditionalFunction<bool>;
-	double entropy = simpleEntropy(responseVector, conditionalFunction, true);
-	double diff = entropy - 0.9402859;
-	if (diff <= error){
-		printf("PASSED - Test simpleEntropy\n");
-	}
-	else{
-		printf("FAILED - Test simpleEntropy\n");
-	}
-
-	//--------------------------------------------------------------
-	vector<bool> windyFeature;
-	windyFeature.push_back(false);
-	windyFeature.push_back(true);
-	windyFeature.push_back(false);
-	windyFeature.push_back(false);
-	windyFeature.push_back(false);
-	windyFeature.push_back(true);
-	windyFeature.push_back(true);
-	windyFeature.push_back(false);
-	windyFeature.push_back(false);
-	windyFeature.push_back(false);
-	windyFeature.push_back(true);
-	windyFeature.push_back(true);
-	windyFeature.push_back(false);
-	windyFeature.push_back(true);
-
-	double totalCountFalse = 0;
-	double totalCountTrue = 0;
-
-	double entropyFalse = conditionalEntropy<bool>(responseVector, windyFeature, false, &totalCountFalse);
-	double entropyTrue = conditionalEntropy<bool>(responseVector, windyFeature, true, &totalCountTrue);
-	double gainWindy = entropy - (totalCountFalse / (totalCountFalse + totalCountTrue))*entropyFalse - (totalCountTrue / (totalCountTrue + totalCountFalse))*entropyTrue;
-
-	diff = gainWindy - 0.048127;
-	if (diff <= error){
-		printf("PASSED - Test conditionalEntropy\n");
-	}
-	else{
-		printf("FAILED - Test conditionalEntropy\n");
-	}
-
-	//--------------------------------------------------------------
-	vector<bool> differentDescreteValuesBool;
-	differentDescreteValuesBool.push_back(false);
-	differentDescreteValuesBool.push_back(true);
-	gainWindy = discreteGrain<bool>(differentDescreteValuesBool, windyFeature, responseVector);
-
-	diff = gainWindy - 0.048127;
-	if (diff <= error){
-		printf("PASSED - Test discreteGain boolean\n");
-	}
-	else{
-		printf("FAILED - Test discreteGain boolean\n");
-	}
-
-	//--------------------------------------------------------------
-	vector<string> differenteDescreteValuesTemperature;
-	differenteDescreteValuesTemperature.push_back("hot");
-	differenteDescreteValuesTemperature.push_back("mild");
-	differenteDescreteValuesTemperature.push_back("cold");
-
-	vector<string> temperatureFeature;
-	temperatureFeature.push_back("hot");
-	temperatureFeature.push_back("hot");
-	temperatureFeature.push_back("hot");
-	temperatureFeature.push_back("mild");
-	temperatureFeature.push_back("cold");
-	temperatureFeature.push_back("cold");
-	temperatureFeature.push_back("cold");
-	temperatureFeature.push_back("mild");
-	temperatureFeature.push_back("cold");
-	temperatureFeature.push_back("mild");
-	temperatureFeature.push_back("mild");
-	temperatureFeature.push_back("mild");
-	temperatureFeature.push_back("hot");
-	temperatureFeature.push_back("mild");
-
-	double gainTemperature = discreteGrain<string>(differenteDescreteValuesTemperature, temperatureFeature, responseVector);
-
-	diff = gainTemperature - 0.029222;
-	if (diff <= error){
-		printf("PASSED - Test discreteGain string\n");
-	}
-	else{
-		printf("FAILED - Test discreteGain string\n");
-	}
-
-	//--------------------------------------------------------------
-	vector<double> doubleHumidityFeature;
-	doubleHumidityFeature.push_back(0.72);
-	doubleHumidityFeature.push_back(0.91);
-	doubleHumidityFeature.push_back(0.9);
-	doubleHumidityFeature.push_back(0.87);
-	doubleHumidityFeature.push_back(0.68);
-
-	vector<bool> responseDoubleFeature;
-	responseDoubleFeature.push_back(true);
-	responseDoubleFeature.push_back(false);
-	responseDoubleFeature.push_back(false);
-	responseDoubleFeature.push_back(false);
-	responseDoubleFeature.push_back(true);
-
-	double setDivisionValue = 0;
-	double gainDoubleHumidity = continuousGain<double>(doubleHumidityFeature, responseDoubleFeature, &setDivisionValue);
-
-	diff = gainTemperature - 0.97095;
-	if (diff <= error){
-		printf("PASSED - Test continuousGain\n");
-	}
-	else{
-		printf("FAILED - Test continuousGain\n");
-	}
-
-	//--------------------------------------------------------------
-	// MAIN structure
-
-	int decisionInt = 0;
-	string stringFeature;
-	double doubleFeature;
-
-	vector<bool> decisionVector;
-	vector<vector<double>> CVV;
-	vector<string> DVV;
-	int indexFeature = 0;
-
-	queue<struct Node*> q;
-
-	while (cin >> decisionInt){
-		// Read decision vector (boolean) decisionVector
-		decisionVector.push_back(decisionInt == 0 ? false : true);
-		// Read all discrete feature vectors (string) vector<string> = DVV
-		cin >> stringFeature;
-		DVV.push_back(stringFeature);
-
-		// Read all continuous feature vectors (double) vector<vector<double> > = CVV
-		for (int index = 0; index < 64; index++){
-			cin >> doubleFeature;
-			if (CVV.size() == index){
-				CVV.push_back(vector<double>());
-			}
-			CVV[index].push_back(doubleFeature);
-		}
-	}
-
-	// create node (decisionVector, CVV, DVV) as head
-	struct Node* head = createNewNode(false, &decisionVector, &CVV, &DVV);
-
-	// push node in queue
-	q.push(head);
-
-	// there are still nodes to be learned
-	while (q.empty() == false){
-		struct Node* front = (struct Node*)q.front();
-		q.pop();
-
-		// calculate CVVMaxGain as being the biggest gain in CVV
-		double CVVGain = 0;
-		double CVVMaxGain = 0;
-		double CVVCut = 0;
-		double CVVMaxCut = 0;
-		int CVVMaxIndex = 0;
-		for (int index = 0; front->CVV != NULL && index < front->CVV->size(); index++){
-			CVVGain = continuousGain<double>(front->CVV->at(index), *front->decisionVector, &CVVCut);
-
-			// Save the feature with the max gain for all continuous features
-			if (CVVGain > CVVMaxGain){
-				CVVMaxGain = CVVGain;
-				CVVMaxCut = CVVCut;
-				CVVMaxIndex = index;
-			}
-		}
-
-		// calculate DVVGain as being the biggest gain in DVV
-		vector<string> *uniqueValue = uniqueVector<string>(*front->DVV);
-		double DVVGain = 0;
-		if (front->DVV->size() != 0){
-			DVVGain = discreteGrain<string>(*uniqueValue, *front->DVV, *front->decisionVector);
-		}
-
-		// C is the max of CVV and DVV gain
-		if (CVVMaxGain >= DVVGain && CVVMaxGain != 0){
-			// cut all vectors with separation for <= and > nodes
-			struct Node* leftNode = NULL;
-			struct Node* rightNode = NULL;
-			createSmallerEqualAndBiggerNode(*front->decisionVector, *front->CVV, *front->DVV, CVVMaxCut, CVVMaxIndex, front);
-			q.push(front->leftNode);
-			q.push(front->rightNode);
-		}
-		else if (DVVGain != 0){
-			createMapNode(*front->decisionVector, *front->CVV, *front->DVV, front);
-			map<string, struct Node*>::iterator it = front->discreteChildren->begin();
-
-			while (it != front->discreteChildren->end()){
-				q.push(it->second);
-				it++;
-			}
-		}
-	}
-
-	// print decision tree in graph form
-	PrintDecisionTree(head);
+	vector<pair<int,string>> *words = ReadFrequencyCIN();
+	//vector<pair<int,string>> *words = new vector<pair<int,string>>();
+	//words->push_back(pair<int,string>(1, "abc"));
+	//words->push_back(pair<int,string>(2, "b"));
+	struct SuffixNode* tree = CreateSuffixTree(words);
+	PrintSuffixTree(tree);
 
 	return 0;
 }
